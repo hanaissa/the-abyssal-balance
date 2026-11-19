@@ -22,4 +22,4 @@ Set `PICO_SDK_PATH`, configure with `-DABYSSAL_USE_PICO_SDK=ON`, and use the Pic
 
 ## Motor status
 
-The L298N backend is a stub. Keep the pump supply off until the wiring and enable signals have been checked on the bench. See the [Master Project Context](docs/MasterContext.md#motor-verification) for the motor verification sequence.
+The L298N backend is available for bench verification. Keep the pump supply off until the wiring and enable signals have been checked. See the [Master Project Context](docs/MasterContext.md#motor-verification) for the standalone `Pump_Bench` build and commands.

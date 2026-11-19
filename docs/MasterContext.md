@@ -43,12 +43,12 @@ GP8 and GP9 are the only Pico outputs allocated to the H-bridge. GP10/GP11 are s
 
 ## Motor and H-bridge wiring
 
-The owner confirmed **two fixed-direction pumps**, one for fill and one for drain. The table below records the team's proposed physical hookup on one L298N module. The GPIO assignments are checked against the code. The actual module, pump ratings and assembled wiring still need bench verification. [Team wiring proposal](PinMapping.md#two-fixed-direction-pumps-on-one-l298n)
+The owner confirmed **two fixed-direction pumps**, one for fill and one for drain, and reported connecting the wiring. The photos show an HW-095 board with an L298N. The table records the intended hookup, which matches the firmware pin assignments. The assembled connections, supply ratings and flow direction still need bench verification. [Team wiring reference](PinMapping.md#two-fixed-direction-pumps-on-one-l298n)
 
 | L298N module terminal | Proposed physical connection |
 | --- | --- |
-| `ENA` (channel A) | Pico GP8, header pin **11**. Remove the `ENA` jumper and add a separate **10 kΩ pull-down** from `ENA` to common ground. |
-| `ENB` (channel B) | Pico GP9, header pin **12**. Remove the `ENB` jumper and add a separate **10 kΩ pull-down** from `ENB` to common ground. |
+| `ENA` (channel A) | Remove the `ENA` jumper. Connect the front signal post in line with `IN1`–`IN4` to Pico GP8, header pin **11**. Add a separate **10 kΩ pull-down** from the same signal post to common ground. |
+| `ENB` (channel B) | Remove the `ENB` jumper. Connect the front signal post in line with `IN1`–`IN4` to Pico GP9, header pin **12**. Add a separate **10 kΩ pull-down** from the same signal post to common ground. |
 | `IN1` and `IN3` | Fixed logic HIGH from Pico `3V3 OUT`, header pin **36**. |
 | `IN2` and `IN4` | Fixed LOW to common ground. |
 | `OUT1` and `OUT2` | The two fill-pump leads. Confirm actual flow direction on the bench. |
@@ -67,4 +67,57 @@ Pump work covers [`drivers/motor/`](../drivers/motor/) and [`tests/Pump_Test/`](
 
 ## Motor verification
 
-The checked-in L298N backend returns `APP_NOT_READY`. A host test can check the pump command contract with a fake bridge. A Pico build checks compilation. Before powering the pumps, verify the actual module connections and observe both enable signals with the motors disconnected, including startup, stop and direction changes. Verify actual fill, drain and stop behavior on the tank before calling the motor feature complete.
+### Implemented behavior
+
+Call [`pump_init()`](../drivers/motor/Pump.h) before issuing movement commands. `pump_apply()` forwards fill or drain at 1–100% duty. A stop command or a valid movement command at 0% stops both channels. An invalid direction, movement above 100%, or bridge error requests a stop. `pump_stop()` can be called before initialization. Call the API from one control loop.
+
+The [Pico backend](../drivers/motor/L298N.c) uses hardware PWM slice 4 at 10 kHz nominal, with GP8 on channel A and GP9 on channel B. It forces both enable pins low at startup and on stop. Before starting or switching channels, it clears the previous duty and holds both enables low for 10 µs. Updating the duty of an already-running channel keeps its PWM phase intact. Duty is the fraction of time the enable is high. The tank test establishes which duty values can actually start the pumps and produce useful flow.
+
+### Run the host test
+
+From the repository root, configure a host build and run the motor test through CTest.
+
+```powershell
+cmake -S . -B build/motor-host -DABYSSAL_USE_PICO_SDK=OFF
+cmake --build build/motor-host --config Release --target Pump_Test
+ctest --test-dir build/motor-host -C Release -R '^Pump_Test$' --output-on-failure
+```
+
+Expect `Pump_Test` to pass. It uses a fake L298N to check initialization and stop order, valid fill and drain, the 0%, 1%, 100% and 101% boundaries, invalid directions, and exact error propagation. The hardware PWM pins are outside the scope of this check. [Host pump test](../tests/Pump_Test/main.c)
+
+### Build and flash the bench firmware
+
+Use a shell with CMake and the Pico SDK toolchain available and `PICO_SDK_PATH` set. Build from the repository root. For a Pico W, use `-DPICO_BOARD=pico_w` and a separate build directory such as `build/pump-bench-w`.
+
+```powershell
+cmake -S tests/Pump_Test -B build/pump-bench -DPICO_BOARD=pico
+cmake --build build/pump-bench
+```
+
+1. Keep the motor supply off and disconnect the motors. With the Pico USB cable unplugged, verify the `ENA` and `ENB` jumper caps are off and the Pico wires go to the front signal posts.
+2. Hold **BOOTSEL** while connecting the Pico to the computer with a USB data cable. Copy `build/pump-bench/Pump_Bench.uf2` to the `RPI-RP2` drive. For the Pico W build, use the UF2 from `build/pump-bench-w`. The board reboots into the bench firmware after the transfer. [Raspberry Pi BOOTSEL instructions](https://www.raspberrypi.com/documentation/microcontrollers/pico-series.html#debug-using-a-pico-series-device)
+3. Open the new Pico USB serial port. On Windows, find its `COM` number in Device Manager under **Ports (COM & LPT)**. The terminal should display `Pump bench:` and the command list. Send one case-sensitive command character at a time.
+
+### Verify enable signals with motor power off
+
+Probe GP8/`ENA` and GP9/`ENB` relative to common ground using a scope or logic analyzer. A multimeter can check steady levels, while the scope or analyzer shows duty and pulse timing.
+
+| Action | GP8 / `ENA` | GP9 / `ENB` |
+| --- | --- | --- |
+| Power up or idle | Low | Low |
+| Send `f` | About 10 kHz at 50% duty for about 500 ms | Low |
+| Send `d` | Low | About 10 kHz at 50% duty for about 500 ms |
+| Send `F` | Steady high for about 500 ms | Low |
+| Send `D` | Low | Steady high for about 500 ms |
+| Send `s` during a pulse, or wait for its timeout | Low | Low |
+| Unplug USB during a pulse | Returns low | Returns low |
+
+Alternate fill and drain after each pulse ends. The trace should show one active enable at a time, with both low between pulses. The bench firmware ignores movement commands while a pulse is active. Software mock checks cover switching directly between active channels. [USB bench source](../tests/Pump_Test/bench.c)
+
+### Verify water flow on the tank
+
+After the enable signal check passes, disconnect USB and all power before attaching pump leads. Confirm the L298N logic and pump supplies, grounds, flyback protection and pump ratings against the wiring table. Follow the pumps' priming and dry-run limits for the wet test. With the pump supply connected, try one short fill pulse and one short drain pulse. Check that the correct pump moves water in the intended direction, the other pump stays off, and stop cuts pump drive. Record the board, supply voltage, duty that starts each pump, and observed flow and stop behavior.
+
+### Verification status
+
+The six registered host checks passed, including `Pump_Test`. A separate GPIO/PWM mock exercised the 10 µs switch interval, buffered duty updates, and stop before a pending duty update took effect. The Pico firmware and both Pico and Pico W bench builds compiled. Physical enable signals, flow and stop behavior still require the bench checks above. The station-level failed-Submit and Reset flows remain with the application owner.
