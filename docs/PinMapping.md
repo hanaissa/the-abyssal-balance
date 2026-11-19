@@ -42,8 +42,8 @@ keeps the corresponding pump disabled while the Pico pins are unconfigured.
 If a pump runs in the wrong direction, disconnect power and reverse that pump's
 output leads. Never enable both pumps together in the eventual driver.
 
-The L298N driver is currently a stub. This allocation does not implement PWM,
-stop behavior or pump operation; keep pump power off during sensor-only tests.
+The Pico motor driver uses the two enables for PWM and stop. Keep pump power
+off during sensor-only tests and the initial [enable signal check](MasterContext.md#motor-verification).
 
 ## Shared camera/LCD bus and other connections
 
