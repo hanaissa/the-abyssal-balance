@@ -1,0 +1,6 @@
+build
+/build-*/
+*.uf2
+*.elf
+*.elf.map
+!.vscode/*
