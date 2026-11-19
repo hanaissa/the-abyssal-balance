@@ -1,14 +1,15 @@
 
 #include "LCD1602.h"
+#include "AppConfig.h"
 #if defined(ABYSSAL_USE_PICO_SDK) && ABYSSAL_USE_PICO_SDK
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 
-#define LCD_I2C i2c0
+#define LCD_I2C_PORT i2c1
 #define LCD_ADDR 0x27
-#define LCD_SDA 4
-#define LCD_SCL 5
+#define LCD_SDA_PIN PIN_LCD_SDA
+#define LCD_SCL_PIN PIN_LCD_SCL
 
 #define RS 0x01
 #define EN 0x04
@@ -19,7 +20,7 @@ static bool ready = false;
 // Send data through I2C
 static AppStatus lcd_write(uint8_t data) {
     int n = i2c_write_timeout_us(
-        LCD_I2C, LCD_ADDR, &data, 1, false, 10000
+        LCD_I2C_PORT, LCD_ADDR, &data, 1, false, 10000
     );
     return n == 1 ? APP_OK : APP_ERROR;
 }
@@ -74,11 +75,11 @@ static AppStatus lcd_line(uint8_t row, const char *text) {
 AppStatus lcd1602_init(void) {
     ready = false;
 
-    i2c_init(LCD_I2C, 100000);
-    gpio_set_function(LCD_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(LCD_SCL, GPIO_FUNC_I2C);
-    gpio_pull_up(LCD_SDA);
-    gpio_pull_up(LCD_SCL);
+    i2c_init(LCD_I2C_PORT, 100000);
+    gpio_set_function(LCD_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(LCD_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(LCD_SDA_PIN);
+    gpio_pull_up(LCD_SCL_PIN);
 
     sleep_ms(50);
 

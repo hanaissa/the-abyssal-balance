@@ -33,6 +33,7 @@ if(ABYSSAL_USE_PICO_SDK)
 else()
     add_placeholder_test(LCDButtons_Test)
 endif()
-target_include_directories(LCDButtons_Test PRIVATE ${CMAKE_SOURCE_DIR}/drivers/display)
+target_include_directories(LCDButtons_Test PRIVATE
+    ${CMAKE_SOURCE_DIR}/drivers/display ${CMAKE_SOURCE_DIR}/drivers/buttons)
 add_placeholder_test(CameraOCR_Test)
 add_placeholder_test(Integration_Test)
