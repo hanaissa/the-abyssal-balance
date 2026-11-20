@@ -13,6 +13,10 @@
 #define L298N_MAX_SPEED_PERCENT 100u
 #define L298N_DEADTIME_US 10u
 
+/* GP8/GP9 control only ENA/ENB. IN1/IN3 are hardwired HIGH and IN2/IN4
+ * LOW. The 12 V pumps use external VS power, not Pico 3V3 OUT.
+ * Duty is enable on-time, not a measured motor voltage or flow rate. */
+
 static bool g_ready = false;
 static unsigned int g_slice = 0u;
 static PumpDirection g_active_direction = PUMP_STOP;

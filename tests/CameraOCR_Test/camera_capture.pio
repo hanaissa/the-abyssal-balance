@@ -1,0 +1,57 @@
+.program camera_capture
+; Pins are reserved in AppConfig.h: VSYNC=12, HREF=13, PCLK=21.
+; IN base is D0=GP0; eight contiguous data pins, sampled on rising PCLK.
+; Sensor order is Y U Y V. Store Y, skip each chroma byte.
+; No initial wait-for-low after HREF: that could discard the first byte and
+; make a fixed-byte row loop spill into the following line.
+    wait 1 gpio 12
+    wait 0 gpio 12
+    irq 0
+    wait 1 gpio 13
+pixel:
+    wait 1 gpio 21
+    jmp pin sample
+    wait 0 gpio 21
+    jmp pixel
+sample:
+    in pins, 8
+    wait 0 gpio 21
+    wait 1 gpio 21
+    wait 0 gpio 21
+    jmp pixel
+
+.program camera_capture_vga
+; Same sampler, four most significant Y bits, packed two pixels per DMA byte.
+; IN base GP4. 640*480/2 = 153600 bytes, within the same frame buffer.
+    wait 1 gpio 12
+    wait 0 gpio 12
+    irq 0
+    wait 1 gpio 13
+pixel_vga:
+    wait 1 gpio 21
+    jmp pin sample_vga
+    wait 0 gpio 21
+    jmp pixel_vga
+
+sample_vga:
+    in pins, 4
+    wait 0 gpio 21
+    wait 1 gpio 21
+    wait 0 gpio 21
+    jmp pixel_vga
+
+.program camera_capture_raw
+; Diagnostic: preserve BOTH bytes of each YUV pixel, without choosing phase.
+    wait 1 gpio 12
+    wait 0 gpio 12
+    irq 0
+    wait 1 gpio 13
+raw_byte:
+    wait 1 gpio 21
+    jmp pin raw_sample
+    wait 0 gpio 21
+    jmp raw_byte
+raw_sample:
+    in pins, 8
+    wait 0 gpio 21
+    jmp raw_byte

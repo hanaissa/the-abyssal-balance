@@ -1,0 +1,12 @@
+if(NOT TARGET pico_camera)
+    add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../vendor/PicoCamera"
+                     "${CMAKE_CURRENT_BINARY_DIR}/PicoCamera")
+    target_compile_features(pico_camera PRIVATE cxx_std_17)
+endif()
+add_executable(PicoCamera_Test "${CMAKE_CURRENT_LIST_DIR}/main.c")
+target_compile_features(PicoCamera_Test PRIVATE c_std_11)
+target_include_directories(PicoCamera_Test PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../../include")
+target_link_libraries(PicoCamera_Test PRIVATE pico_stdlib pico_camera)
+pico_enable_stdio_usb(PicoCamera_Test 1)
+pico_enable_stdio_uart(PicoCamera_Test 0)
+pico_add_extra_outputs(PicoCamera_Test)

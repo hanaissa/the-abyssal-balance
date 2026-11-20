@@ -199,10 +199,39 @@ static void run_explicit_stop_test(void) {
     CHECK("explicit_stop", g_fake.active_speed == 0u);
 }
 
+static void run_start_helpers_test(void) {
+    fake_reset();
+    CHECK("start_fill", pump_start_fill(1u) == APP_OK);
+    CHECK("start_fill", g_fake.active_dir == PUMP_FILL && g_fake.active_speed == 1u);
+    CHECK("start_drain", pump_start_drain(100u) == APP_OK);
+    CHECK("start_drain", g_fake.active_dir == PUMP_DRAIN && g_fake.active_speed == 100u);
+    CHECK("fill_zero_helper", pump_start_fill(0u) == APP_OK);
+    CHECK("fill_zero_helper", g_fake.active_dir == PUMP_STOP && g_fake.active_speed == 0u);
+    CHECK("fill_restart", pump_start_fill(50u) == APP_OK);
+    CHECK("drain_zero_helper", pump_start_drain(0u) == APP_OK);
+    CHECK("drain_zero_helper", g_fake.active_dir == PUMP_STOP && g_fake.active_speed == 0u);
+    CHECK("drain_restart", pump_start_drain(50u) == APP_OK);
+    CHECK("fill_invalid_helper", pump_start_fill(101u) == APP_ERROR);
+    CHECK("fill_invalid_helper", g_fake.active_dir == PUMP_STOP && g_fake.active_speed == 0u);
+    CHECK("fill_restart", pump_start_fill(50u) == APP_OK);
+    CHECK("drain_invalid_helper", pump_start_drain(255u) == APP_ERROR);
+    CHECK("drain_invalid_helper", g_fake.active_dir == PUMP_STOP && g_fake.active_speed == 0u);
+    g_fake.apply_status = APP_NOT_READY;
+    CHECK("helper_not_ready", pump_start_fill(50u) == APP_NOT_READY);
+    CHECK("helper_not_ready", g_fake.active_dir == PUMP_STOP && g_fake.active_speed == 0u);
+    g_fake.apply_status = APP_ERROR;
+    CHECK("helper_backend_error", pump_start_drain(50u) == APP_ERROR);
+    CHECK("helper_backend_error", g_fake.active_dir == PUMP_STOP && g_fake.active_speed == 0u);
+}
+
 int main(void) {
+    fake_reset();
+    pump_stop();
+    check_calls("stop_before_init", 1, CALL_STOP, CALL_NONE, CALL_NONE);
     run_init_tests();
     run_apply_tests();
     run_explicit_stop_test();
+    run_start_helpers_test();
 
     if (g_failures != 0) {
         fprintf(stderr, "Pump_Test: %d check(s) failed\n", g_failures);

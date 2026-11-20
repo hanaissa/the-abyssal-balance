@@ -50,6 +50,14 @@ AppStatus pump_apply(PumpCommand command) {
     return status;
 }
 
+AppStatus pump_start_fill(uint8_t speed_percent) {
+    return pump_apply((PumpCommand){ PUMP_FILL, speed_percent });
+}
+
+AppStatus pump_start_drain(uint8_t speed_percent) {
+    return pump_apply((PumpCommand){ PUMP_DRAIN, speed_percent });
+}
+
 void pump_stop(void) {
     l298n_emergency_stop();
 }
