@@ -2,19 +2,45 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Configure Pico",
+            "type": "process",
+            "command": "${userHome}/.pico-sdk/cmake/v4.3.4/bin/cmake",
+            "args": [
+                "-S", "${workspaceFolder}",
+                "-B", "${workspaceFolder}/build-pico",
+                "-G", "Ninja",
+                "-DABYSSAL_USE_PICO_SDK=ON",
+                "-DABYSSAL_BUILD_TESTS=OFF",
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+                "-DPICO_BOARD=pico",
+                "-DPICO_SDK_PATH=${userHome}/.pico-sdk/sdk/2.3.1",
+                "-DPICO_TOOLCHAIN_PATH=${userHome}/.pico-sdk/toolchain/15_2_Rel1",
+                "-Dpicotool_DIR=${userHome}/.pico-sdk/picotool/2.3.1/picotool"
+            ],
+            "options": {
+                "env": {
+                    "PATH": "${userHome}/.pico-sdk/ninja/v1.13.2;${env:PATH}"
+                }
+            },
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "${userHome}/.pico-sdk/cmake/v4.3.4/bin/cmake.exe"
+            }
+        },
+        {
             "label": "Compile Project",
             "type": "process",
-            "isBuildCommand": true,
-            "command": "${userHome}/.pico-sdk/ninja/v1.13.2/ninja",
-            "args": ["-C", "${workspaceFolder}/build"],
-            "group": "build",
+            "dependsOn": "Configure Pico",
+            "command": "${userHome}/.pico-sdk/cmake/v4.3.4/bin/cmake",
+            "args": ["--build", "${workspaceFolder}/build-pico", "--target", "abyssal_balance", "--parallel", "4"],
+            "group": {"kind": "build", "isDefault": true},
             "presentation": {
                 "reveal": "always",
                 "panel": "dedicated"
             },
             "problemMatcher": "$gcc",
             "windows": {
-                "command": "${env:USERPROFILE}/.pico-sdk/ninja/v1.13.2/ninja.exe"
+                "command": "${userHome}/.pico-sdk/cmake/v4.3.4/bin/cmake.exe"
             }
         },
         {

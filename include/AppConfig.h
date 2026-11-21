@@ -15,7 +15,7 @@
 #define PIN_PUMP_FILL_ENABLE 8
 #define PIN_PUMP_DRAIN_ENABLE 9
 #define PIN_UV_LED 22
-/* OV7670 reservation only; camera capture/OCR are not implemented yet. */
+/* OV7670 capture and experimental block OCR are in drivers/camera. */
 #define PIN_CAMERA_D0 0
 #define PIN_CAMERA_D1 1
 #define PIN_CAMERA_D2 2

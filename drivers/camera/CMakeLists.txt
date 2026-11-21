@@ -1,0 +1,13 @@
+add_library(abyssal_camera Camera.c OCR.c ocr/OCRModel.c)
+target_include_directories(abyssal_camera PUBLIC
+    "${CMAKE_CURRENT_LIST_DIR}" "${CMAKE_CURRENT_LIST_DIR}/../../include")
+target_compile_features(abyssal_camera PRIVATE c_std_11)
+if(NOT MSVC)
+    target_link_libraries(abyssal_camera PUBLIC m)
+endif()
+if(ABYSSAL_USE_PICO_SDK)
+    add_subdirectory(vendor/PicoCamera)
+    target_compile_features(pico_camera PRIVATE cxx_std_17)
+    target_compile_definitions(abyssal_camera PRIVATE ABYSSAL_USE_PICO_SDK=1)
+    target_link_libraries(abyssal_camera PUBLIC pico_camera pico_stdlib hardware_irq)
+endif()

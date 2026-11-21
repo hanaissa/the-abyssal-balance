@@ -1,0 +1,21 @@
+{
+  "source": "NIST EMNIST balanced",
+  "seed": 701,
+  "output_alphabet": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  "train_count": 78400,
+  "validation_count": 8000,
+  "test_count": 14400,
+  "test_accuracy": 0.8777777777777778,
+  "test_acceptance": 0.7595138888888889,
+  "accepted_test_accuracy": 0.9705586541099022,
+  "epochs": 60,
+  "architecture": [
+    576,
+    192,
+    36
+  ],
+  "scope": "Uppercase block letters and digits only",
+  "normalization_side": 24,
+  "normalization_extent": 20,
+  "model_sha256": "9122598732e5558ec9593d4621706adb529902e638dd13b6d200e70c4099c486"
+}

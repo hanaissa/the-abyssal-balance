@@ -1,0 +1,130 @@
+[
+  {
+    "image": "tools/ocr/calibration/original-5.pgm",
+    "label": "H"
+  },
+  {
+    "image": "tools/ocr/calibration/original-6.pgm",
+    "label": "E"
+  },
+  {
+    "image": "tools/ocr/calibration/original-7.pgm",
+    "label": "L"
+  },
+  {
+    "image": "tools/ocr/calibration/original-4.pgm",
+    "label": "L"
+  },
+  {
+    "image": "tools/ocr/calibration/original-3.pgm",
+    "label": "O"
+  },
+  {
+    "image": "tools/ocr/calibration/original-1.pgm",
+    "label": "1"
+  },
+  {
+    "image": "tools/ocr/calibration/original-2.pgm",
+    "label": "2"
+  },
+  {
+    "image": "tools/ocr/calibration/original-0.pgm",
+    "label": "3"
+  },
+  {
+    "image": "tools/ocr/calibration/second-7.pgm",
+    "label": "H"
+  },
+  {
+    "image": "tools/ocr/calibration/second-6.pgm",
+    "label": "E"
+  },
+  {
+    "image": "tools/ocr/calibration/second-8.pgm",
+    "label": "L"
+  },
+  {
+    "image": "tools/ocr/calibration/second-5.pgm",
+    "label": "L"
+  },
+  {
+    "image": "tools/ocr/calibration/second-4.pgm",
+    "label": "O"
+  },
+  {
+    "image": "tools/ocr/calibration/second-3.pgm",
+    "label": "1"
+  },
+  {
+    "image": "tools/ocr/calibration/second-2.pgm",
+    "label": "2"
+  },
+  {
+    "image": "tools/ocr/calibration/second-1.pgm",
+    "label": "3"
+  },
+  {
+    "image": "tools/ocr/calibration/thick-19.pgm",
+    "label": "H"
+  },
+  {
+    "image": "tools/ocr/calibration/thick-20.pgm",
+    "label": "E"
+  },
+  {
+    "image": "tools/ocr/calibration/thick-21.pgm",
+    "label": "L"
+  },
+  {
+    "image": "tools/ocr/calibration/thick-15.pgm",
+    "label": "L"
+  },
+  {
+    "image": "tools/ocr/calibration/thick-16.pgm",
+    "label": "O"
+  },
+  {
+    "image": "tools/ocr/calibration/thick-17.pgm",
+    "label": "1"
+  },
+  {
+    "image": "tools/ocr/calibration/thick-18.pgm",
+    "label": "2"
+  },
+  {
+    "image": "tools/ocr/calibration/thick-14.pgm",
+    "label": "3"
+  },
+  {
+    "image": "tools/ocr/calibration/small-3.pgm",
+    "label": "H"
+  },
+  {
+    "image": "tools/ocr/calibration/small-4.pgm",
+    "label": "E"
+  },
+  {
+    "image": "tools/ocr/calibration/small-6.pgm",
+    "label": "L"
+  },
+  {
+    "image": "tools/ocr/calibration/small-5.pgm",
+    "label": "L"
+  },
+  {
+    "image": "tools/ocr/calibration/small-7.pgm",
+    "label": "O"
+  },
+  {
+    "image": "tools/ocr/calibration/small-2.pgm",
+    "label": "1"
+  },
+  {
+    "image": "tools/ocr/calibration/small-1.pgm",
+    "label": "2"
+  },
+  {
+    "image": "tools/ocr/calibration/small-0.pgm",
+    "label": "3"
+  }
+]

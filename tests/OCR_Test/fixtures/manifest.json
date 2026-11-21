@@ -1,0 +1,20 @@
+[
+  {
+    "fixture": "camera-ocr-white-paper-4.rgb565.gz",
+    "expected": "HELLO 123",
+    "sha256": "3cf24602680b32041dab5859f9401fb5390b7b26e7651b277cd1f05ea15d1496",
+    "use": "development regression, not held out"
+  },
+  {
+    "fixture": "camera-ocr-v2-fresh-1.rgb565.gz",
+    "expected": "HELLO 123",
+    "sha256": "4800daed88dbe78ef15e294632789a49064f7baa3afcad76a4c6255a6605373c",
+    "use": "development regression, not held out"
+  },
+  {
+    "fixture": "camera-ocr-v2-verification-13.rgb565.gz",
+    "expected": "HELLO 123",
+    "sha256": "dd16c453840b7ac33058941da9bee8f7b4dd6e871114dd6b3e31b1b318e3e785",
+    "use": "development regression, not held out"
+  }
+]

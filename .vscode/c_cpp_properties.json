@@ -3,18 +3,21 @@
         {
             "name": "Pico",
             "includePath": [
-                "${workspaceFolder}/**",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/drivers/**",
+                "${workspaceFolder}/third_party/**",
                 "${userHome}/.pico-sdk/sdk/2.3.1/**"
             ],
             "forcedInclude": [
                 "${workspaceFolder}/build-pico/generated/pico_base/pico/config_autogen.h",
                 "${userHome}/.pico-sdk/sdk/2.3.1/src/common/pico_base_headers/include/pico.h"
             ],
-            "defines": [],
+            "defines": ["ABYSSAL_USE_PICO_SDK=1", "PICO_ON_DEVICE=1", "PICO_RP2040=1"],
             "compilerPath": "${userHome}/.pico-sdk/toolchain/15_2_Rel1/bin/arm-none-eabi-gcc.exe",
             "compileCommands": "${workspaceFolder}/build-pico/compile_commands.json",
-            "cStandard": "c17",
-            "cppStandard": "c++14",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
             "intelliSenseMode": "linux-gcc-arm"
         }
     ],

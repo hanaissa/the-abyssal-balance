@@ -1,7 +1,8 @@
 # OV7670 camera bench tests
 
-For the current PicoCamera-based RGB565 160x120 capture and Python/OpenCV
-viewer, use [the PicoCamera test instructions](picocamera/README.md).
+For the current PicoCamera-based RGB565 320x240 capture and Python/OpenCV
+viewer, use the [production driver](../../drivers/camera/README.md) and
+[preview tools](../../tools/camera/README.md). Neither depends on this test folder.
 The custom PIO experiments below are retained for history and are not the
 recommended image-capture test.
 

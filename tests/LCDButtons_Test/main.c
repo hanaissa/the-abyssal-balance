@@ -38,26 +38,11 @@ int main(void) {
     printf("LCD ready. Submit GP%d, Reset GP%d: press a button.\n",
            PIN_SUBMIT_BUTTON, PIN_RESET_BUTTON);
     printf("If the screen is blank, adjust the backpack contrast potentiometer.\n");
-    ButtonEvents previous = {0};
     while (true) {
-        ButtonEvents first, second;
-        if (buttons_poll(&first) != APP_OK) { return 1; }
-        sleep_ms(20);
-        if (buttons_poll(&second) != APP_OK) { return 1; }
-
-        // Accept two matching samples; report only a new press, not a held key.
-        if (first.submit_pressed == second.submit_pressed) {
-            if (second.submit_pressed && !previous.submit_pressed) {
-                show_press("Submit pressed");
-            }
-            previous.submit_pressed = second.submit_pressed;
-        }
-        if (first.reset_pressed == second.reset_pressed) {
-            if (second.reset_pressed && !previous.reset_pressed) {
-                show_press("Reset pressed");
-            }
-            previous.reset_pressed = second.reset_pressed;
-        }
+        ButtonEvents events;
+        if (buttons_poll_debounced(&events) != APP_OK) { return 1; }
+        if (events.submit_pressed) { show_press("Submit pressed"); }
+        if (events.reset_pressed) { show_press("Reset pressed"); }
         sleep_ms(20);
     }
 }

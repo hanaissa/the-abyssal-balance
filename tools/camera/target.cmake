@@ -1,0 +1,5 @@
+add_executable(Camera_Preview "${CMAKE_CURRENT_LIST_DIR}/main.c")
+target_link_libraries(Camera_Preview PRIVATE abyssal_camera)
+pico_enable_stdio_usb(Camera_Preview 1)
+pico_enable_stdio_uart(Camera_Preview 0)
+pico_add_extra_outputs(Camera_Preview)

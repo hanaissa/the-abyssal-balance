@@ -4,3 +4,5 @@ build
 *.elf
 *.elf.map
 !.vscode/*
+__pycache__/
+*.py[cod]

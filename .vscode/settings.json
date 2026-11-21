@@ -22,6 +22,12 @@
     "cmake.automaticReconfigure": false,
     "cmake.configureOnOpen": false,
     "cmake.generator": "Ninja",
+    "cmake.buildDirectory": "${workspaceFolder}/build-pico",
+    "cmake.configureSettings": {
+        "ABYSSAL_USE_PICO_SDK": "ON",
+        "ABYSSAL_BUILD_TESTS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+    },
     "cmake.cmakePath": "${userHome}/.pico-sdk/cmake/v4.3.4/bin/cmake",
     "C_Cpp.debugShortcut": false,
     "terminal.integrated.env.windows": {

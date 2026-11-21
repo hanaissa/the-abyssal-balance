@@ -2,6 +2,9 @@ import io
 import time
 import unittest
 import zlib
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'tools' / 'camera'))
 from receive import receive_frame, rgb565_to_bgr
 
 
@@ -19,6 +22,22 @@ class TransferTests(unittest.TestCase):
         width, height, data = self.read(self.packet())
         self.assertEqual((width, height, len(data)), (160, 120, 38400))
         self.assertEqual(data[:256], bytes(range(256)))
+
+    def test_qvga_full_frame(self):
+        payload = bytes(range(256)) * 600
+        width, height, data = self.read(self.packet(payload=payload, dimensions=b'320 240 153600'))
+        self.assertEqual((width, height, len(data)), (320, 240, 153600))
+        self.assertEqual(data, payload)
+
+    def test_qvga_reject_bad_packets(self):
+        payload = bytes(range(256)) * 600
+        for packet in (
+                self.packet(payload=payload, dimensions=b'320 240 38400'),
+                self.packet(payload=payload[:-1], dimensions=b'320 240 153600', trailer=b''),
+                self.packet(payload=payload, dimensions=b'320 240 153600', checksum=0),
+                self.packet(payload=payload, dimensions=b'640 480 614400')):
+            with self.subTest(packet=packet), self.assertRaises((ValueError, TimeoutError)):
+                self.read(packet)
 
     def test_reject_bad_packets(self):
         for packet in (self.packet(checksum=0), self.packet(payload=b'cut'),

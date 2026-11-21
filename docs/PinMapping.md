@@ -48,13 +48,16 @@ off during sensor-only tests and the initial [enable signal check](MasterContext
 ## Shared camera/LCD bus and other connections
 
 - Camera SIOD/SIOC and LCD SDA/SCL share I2C1. The LCD code currently uses 0x27;
-  OV7670 conventionally uses 7-bit address 0x21. Camera SCCB support must still
-  be implemented and tested with the shared bus.
+  OV7670 conventionally uses 7-bit address 0x21. SCCB and frame capture are now
+  implemented in [the camera driver](../drivers/camera/README.md). Camera capture
+  and a read-only LCD ACK were observed; concurrent LCD writes during capture
+  and the bus's electrical levels still require verification.
 - Keep the Pico/camera bus side at 3.3V. A 5V LCD backpack with 5V pull-ups needs
   a bidirectional I2C level shifter; place the LCD on its 5V side and the Pico
   and camera on its 3.3V side. Verify pull-ups and module supply requirements.
-- Camera pin reservations do not implement XCLK generation, image capture or
-  OCR. Camera RESET/PWDN levels also need to follow the actual module's wiring
+- The camera driver generates XCLK and captures native 320x240 RGB565 frames.
+  Block-handwriting OCR is experimental; see its [evaluation](../drivers/camera/ocr/MODEL.md).
+  Camera RESET/PWDN levels follow the actual module's wiring
   requirements; no additional GPIOs are reserved for them.
 - Use USB serial: UART on GP0/GP1 would conflict with camera data lines.
 - Each button connects its assigned GPIO to GND when pressed. The button driver

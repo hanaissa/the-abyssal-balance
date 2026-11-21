@@ -3,7 +3,7 @@
 #include <vector>
 #include "mock_sdk/fake_sdk.h"
 // Exercise the real driver against the host SDK fake, not a copied algorithm.
-#include "../vendor/PicoCamera/src/driver/pio_capture.cpp"
+#include "../../../drivers/camera/vendor/PicoCamera/src/driver/pio_capture.cpp"
 #define CHECK(x) do { if (!(x)) { std::fprintf(stderr, "FAIL: %s\n", #x); std::exit(1); } } while (0)
 static void reset(Scenario which) {
     scenario = which; ticks = 0; vsync = false;
@@ -89,6 +89,10 @@ int main() {
     CHECK(pio_capture_frame(buffer, sizeof buffer, 10) == 0);
     CHECK(pio_capture_frame(nullptr, sizeof buffer, 10) == -1);
     CHECK(pio_capture_frame(buffer, 0, 10) == -1);
+    std::vector<uint8_t> qvga(153600);
+    reset(Scenario::Complete);
+    CHECK(pio_capture_frame(qvga.data(), qvga.size(), 10) == 0);
+    CHECK(pio_capture_last_result().bytes_received == qvga.size());
     pio_capture_deinit();
     CHECK(!pio0->enabled[0] && !pio0->enabled[1]);
     std::puts("PASS real capture driver: disabled setup, complete/short/timeout/tail, cleanup and retry.");

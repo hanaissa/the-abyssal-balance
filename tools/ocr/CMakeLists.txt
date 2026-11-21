@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 3.13)
+project(AbyssalOCRHost C)
+set(CMAKE_C_STANDARD 11)
+set(ABYSSAL_USE_PICO_SDK OFF)
+add_subdirectory(../../drivers/camera camera-driver)
+add_executable(OCR_Read read_frame.c)
+target_link_libraries(OCR_Read PRIVATE abyssal_camera)
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/../../tests/OCR_Test/main.c")
+    add_executable(OCR_Check ../../tests/OCR_Test/main.c)
+    target_link_libraries(OCR_Check PRIVATE abyssal_camera)
+    enable_testing()
+    add_test(NAME OCR_Check COMMAND OCR_Check)
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(Python3_FOUND)
+        add_test(NAME OCR_CameraRegression COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_LIST_DIR}/check_camera_regressions.py"
+            --runner $<TARGET_FILE:OCR_Read>
+            --manifest "${CMAKE_CURRENT_LIST_DIR}/../../tests/OCR_Test/fixtures/manifest.json")
+    endif()
+endif()

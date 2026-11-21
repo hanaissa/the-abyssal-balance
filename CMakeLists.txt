@@ -32,15 +32,19 @@ else()
 endif()
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+add_subdirectory(drivers/camera)
 set(ABYSSAL_SOURCES
     src/StateMachine.c
     drivers/rfid/RC522.c drivers/water/WaterLevel.c
     drivers/potentiometer/Potentiometer.c
     drivers/motor/L298N.c drivers/motor/Pump.c
     drivers/display/LCD1602.c drivers/buttons/Buttons.c
-    drivers/uv/UV_LED.c drivers/camera/Camera.c drivers/camera/OCR.c)
+    drivers/uv/UV_LED.c)
 add_library(abyssal_core ${ABYSSAL_SOURCES})
-target_include_directories(abyssal_core PUBLIC include src)
+target_include_directories(abyssal_core PUBLIC include src
+    drivers/rfid drivers/water drivers/potentiometer drivers/motor
+    drivers/display drivers/buttons drivers/uv)
+target_link_libraries(abyssal_core PUBLIC abyssal_camera)
 add_executable(abyssal_balance src/main.c)
 target_link_libraries(abyssal_balance PRIVATE abyssal_core)
 if(ABYSSAL_USE_PICO_SDK)
@@ -49,7 +53,20 @@ if(ABYSSAL_USE_PICO_SDK)
     target_include_directories(abyssal_core PRIVATE third_party/pico-mfrc522)
     target_link_libraries(abyssal_core PUBLIC pico_stdlib hardware_adc hardware_i2c hardware_spi hardware_pwm)
     target_link_libraries(abyssal_balance PRIVATE pico_stdlib)
+    # GP0/GP1 are camera data, so application diagnostics must use USB.
+    pico_enable_stdio_usb(abyssal_balance 1)
+    pico_enable_stdio_uart(abyssal_balance 0)
     pico_add_extra_outputs(abyssal_balance)
 endif()
-enable_testing()
-add_subdirectory(tests)
+option(ABYSSAL_BUILD_TESTS "Build repository tests when present" ON)
+if(ABYSSAL_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+option(ABYSSAL_BUILD_CAMERA_PREVIEW "Build USB preview using the camera driver" OFF)
+if(ABYSSAL_BUILD_CAMERA_PREVIEW)
+    if(NOT ABYSSAL_USE_PICO_SDK)
+        message(FATAL_ERROR "Camera_Preview requires ABYSSAL_USE_PICO_SDK=ON")
+    endif()
+    include(tools/camera/target.cmake)
+endif()

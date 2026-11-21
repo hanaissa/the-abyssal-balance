@@ -1,39 +1,56 @@
 # PicoCamera OV7670 RGB565 test
 
+**Implementation moved:** production capture, settings, patched dependency and
+frame validation are now in [`drivers/camera`](../../../drivers/camera/README.md).
+The maintained USB preview/receiver are in [`tools/camera`](../../../tools/camera/README.md).
+The legacy `PicoCamera_Test` target now calls that same public driver API.
+This test folder can be removed without removing the working implementation.
+The detailed notes below describe the earlier bench development.
+
 This supersedes the earlier custom-capture experiments for new camera testing.
 It uses the actual [PicoCamera Pico SDK example](https://github.com/umeiko/PicoCamera/tree/281d9ff6de5d5f6bd68c2ce75f245cc9cbadb0ea/examples/pico_sdk_capture)
-and a pinned MIT-licensed library snapshot in `../vendor/PicoCamera`, with the
-local sized-capture patch recorded in its [UPSTREAM.md](../vendor/PicoCamera/UPSTREAM.md).
+and a pinned MIT-licensed library snapshot now in `drivers/camera/vendor/PicoCamera`, with the
+local sized-capture patch recorded in its [UPSTREAM.md](../../../drivers/camera/vendor/PicoCamera/UPSTREAM.md).
 The Pico SDK target links `pico_camera`; Arduino is not involved. Legacy bench
 files are preserved, but do not flash them for these instructions.
 
-**Current fix v3:** after both scene and scaler bars reported `starts=2 ends=1`,
+**Current QVGA v5:** captures native 320x240 RGB565 (153600 bytes), four times
+the pixel count of the earlier 160x120 mode. Full VGA RGB565 would require
+614400 bytes, exceeding RP2040 SRAM. No image upscaling is used.
+
+After both scene and scaler bars reported `starts=2 ends=1`,
 capture setup now keeps PIO disabled until its counter and DMA are ready.
 The sized sampler rechecks HREF after PCLK, retains the first line when HREF
 asserts with VSYNC, and halts at the requested byte count. A PIO start flag
 lets the CPU reject a short first frame before collecting another frame.
 The wrapper programs and verifies a 12..492 (480-row) source window, CLKRC
-divider four, reversed PCLK, and DSP bars rather than the scaler pattern.
+divider four, normal PCLK, zero scaler delay, and DSP bars rather than the scaler pattern.
 The v2 hardware run still stopped short at 38280/38400 bytes within one frame.
 This is consistent with a one-byte-per-row deficit, but did not measure individual
 rows. Further review found that upstream `frame_control()` writes only HREF's
 six window bits, clearing the two timing-offset bits. V3 restores HREF[7:6]
 to the sensor's documented default `0x80` while preserving the window LSBs.
 With this window, the full HREF register should read `0xB6`.
-These changes fix concrete setup issues; the HREF offset's effect on the hardware
-byte deficit remains to be verified. GPIO assignments
+The direct v4 hardware comparison still failed with scaler delay 2, with
+normal or reversed PCLK and either HREF offset. Normal PCLK and scaler delay 0
+captured complete 160x120 images repeatedly. V5 makes those passing settings
+the default and removes the experimental timing search. Three direct v5 scene
+captures passed at 320x240: 153600/153600 bytes, one VSYNC start, 240 observed
+HREF rows, and verified CRC. GPIO assignments
 are unchanged. The receiver, CRC, raw-frame sidecars, metadata and original
 single-frame checks are retained.
 Run without `--color-bars` to capture the actual scene. That flag deliberately
 produces a test pattern, not a photograph. Old images remain unchanged.
 
 Rebuild and **reflash** before retrying; the startup banner must contain
-`Capture fix v3`. `CAPTURE_CONFIG` must show `source_rows=480` and `HREF=0xB6`, and
+`Capture QVGA v5`. `CAPTURE_CONFIG` must show `source_rows=480`, `HREF=0xB6`,
+`COM10=0x02`, and `PCLK_DELAY=0`.
 `CAPTURE_DIAG` reports the received byte count, driver status, and VSYNC counts.
 `HREF_rows` counts observed falling HREF edges while the first VSYNC interval is
 active. It is diagnostic only: IRQ delivery order at a simultaneous frame/line
 boundary can affect it. Status -3 rejects a short first frame; -2 is a timeout. No incomplete image
-is padded or accepted. New hardware success is still required.
+is padded or accepted. Electrical measurements, color calibration, and OCR
+accuracy remain separate from these successful capture/transport checks.
 
 ## Electrical checks before starting
 
@@ -129,7 +146,7 @@ After the Pico restarts and electrical checks are complete:
 
 The receiver waits for the wiring-check banner and sends `c` to initialize and
 capture one frame. It saves a PNG and opens it in an OpenCV window. Press a key
-in that window to close it. The saved image is the original 160x120 color data,
+in that window to close it. The saved image is the original 320x240 color data,
 not an upscaled or sharpened result. For the next capture, reconnect Pico USB
 normally (no BOOTSEL), then run again; this firmware performs one test per boot.
 Use `--no-display` to save without a GUI. If COM3 changed:
@@ -150,7 +167,7 @@ decoding checks need not recapture the image. No optical focus fix is assumed.
 ## Protocol, error checks and limitations
 
 Firmware prints library version/commit, detection/initialization status and
-expected dimensions/38400-byte length. It uses the real upstream API:
+expected dimensions/153600-byte length. It uses the real upstream API:
 `pico_camera_init`, `pico_camera_sensor_info_get`, `pico_camera_fb_get`,
 `pico_camera_fb_return`, `pico_camera_deinit`, and `pico_camera_err_str`.
 Frame memory is returned and camera resources released before idling.
@@ -163,8 +180,10 @@ timeout and reports the actual DMA byte count. Register-table writes in the upst
 all propagate errors; init success is not proof every register was programmed.
 No vendor source was patched to conceal those limitations.
 
-Wire format: ASCII `ABYSSAL_RGB565 1 160 120 38400 CRC32HEX` followed by LF
-(CRLF accepted), exactly 38400 raw bytes, then raw `\nEND_RGB565\n`. CRC32 is
+Wire format: ASCII `ABYSSAL_RGB565 1 320 240 153600 CRC32HEX` followed by LF
+(CRLF accepted), exactly 153600 raw bytes, then raw `\nEND_RGB565\n`. The receiver
+also accepts the former exact 160x120/38400-byte contract for older firmware.
+All other dimension/length combinations are rejected. CRC32 is
 IEEE/reflected with the standard `123456789` vector. Binary output disables
 newline translation. Text/error messages occur only outside the payload.
 The Python receiver bounds line size, validates version/dimensions/length,
@@ -174,7 +193,8 @@ USB reconnect/retry; no automatic retransmission or OCR is implemented.
 
 ## Verification
 
-Both standalone and root-target firmware are build checks only. Host checks:
+Firmware build checks and host checks are separate from the physical capture
+evidence above. Host checks:
 
 ```powershell
 cmake -S tests/CameraOCR_Test/picocamera -B build/picocamera-host -G Ninja -DCMAKE_MAKE_PROGRAM=C:/Users/hossa/.pico-sdk/ninja/v1.13.2/ninja.exe -DABYSSAL_PICOCAMERA_HOST_TESTS=ON
@@ -197,11 +217,11 @@ truncation, incorrect dimensions/trailer, device errors and known RGB color
 vectors in both byte orders. The firmware also exercises real-library rejection
 of GP10/11 paired with the wrong I2C peripheral before its valid init.
 
-**Actual Pico capture, electrical checks, correct colors and usable focus still
-require this new hardware test. Previous custom-capture images are not evidence
-that PicoCamera works on this wiring. OCR is deliberately untouched.**
+**Actual v5 Pico capture passed three times, including a recognizable written
+target. Electrical checks, calibrated colors and handwriting OCR accuracy are
+not established by capture success. OCR is deliberately untouched.**
 
-Setup results on this laptop: standalone and root Pico builds passed, the host
+Initial setup results on this laptop: standalone and root Pico builds passed, the host
 frame-contract/CRC checks passed, all four Python test groups passed, and the
 existing six host checks passed. Initial vendored source hashes matched the downloaded
 commit; subsequent local capture changes are documented in UPSTREAM.md.
@@ -270,7 +290,13 @@ The sampler and sensor driver are still PicoCamera's; there is no new capture
 driver. The patch builds and protocol tests pass, but must be tested on hardware;
 it is not a demonstrated explanation or cure for all remaining blur.
 
-## Historical internal-pattern isolation test (superseded by fix v3)
+V5 software checks: both camera CTest checks and six Python receiver test groups
+passed, including full QVGA, truncated/corrupted payload rejection, exact
+dimension/length checks, register readback failure, and normal-PCLK/zero-delay
+setup. The 160x120 working UF2 is retained locally at
+`build/PicoCamera_Test-160x120-working.uf2`.
+
+## Historical internal-pattern isolation test (superseded by QVGA v5)
 
 The latest owner scene is still unusable. Instead of further focus/exposure
 guesses, `receive.py --color-bars` now sends `t` at the startup prompt; the

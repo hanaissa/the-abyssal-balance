@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.13)
+set(PICO_BOARD pico CACHE STRING "Camera preview board")
+include(../../pico_sdk_import.cmake)
+project(AbyssalCameraPreview C CXX ASM)
+pico_sdk_init()
+set(ABYSSAL_USE_PICO_SDK ON)
+add_subdirectory(../../drivers/camera camera-driver)
+include(target.cmake)
