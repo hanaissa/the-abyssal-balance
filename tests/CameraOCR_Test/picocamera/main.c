@@ -9,10 +9,16 @@
 #include "AppConfig.h"
 #include "frame_contract.h"
 #include "crc32.h"
+#include "capture_setup.h"
+#include "driver/pio_capture.h"
 
 
-static volatile unsigned starts, ends;
+static volatile unsigned starts, ends, href_rows;
 static void frame_edge(uint pin, uint32_t events) {
+    if (pin == PIN_CAMERA_HREF) {
+        if ((events & GPIO_IRQ_EDGE_FALL) && starts) { ++href_rows; }
+        return;
+    }
     if (pin != PIN_CAMERA_VSYNC) { return; }
     if (events & GPIO_IRQ_EDGE_RISE) { ++starts; }
     if ((events & GPIO_IRQ_EDGE_FALL) && starts) { ++ends; }
@@ -22,12 +28,24 @@ static void finish(void) {
     for (;;) { sleep_ms(100); }
 }
 
+static bool wait_blanking(void) {
+    uint32_t deadline_start = time_us_32(), low_since = deadline_start;
+    while ((uint32_t)(time_us_32() - deadline_start) < 2000000u) {
+        uint32_t now = time_us_32();
+        if (gpio_get(PIN_CAMERA_VSYNC)) { low_since = now; }
+        else if ((uint32_t)(now - low_since) >= 50u) { return true; }
+        tight_loop_contents();
+    }
+    return false;
+}
+
 int main(void) {
     stdio_init_all();
     while (!stdio_usb_connected()) { sleep_ms(100); }
     sleep_ms(500);
     puts("PicoCamera OV7670 test: Pico SDK, external pump power OFF.");
     printf("Library %s, upstream commit 281d9ff6de5d5f6bd68c2ce75f245cc9cbadb0ea\n", PICO_CAMERA_VERSION_STRING);
+    puts("Capture timing bench v4: controlled HREF/PCLK/delay trials; first-frame guard retained.");
     puts("No RESET/PWDN GPIOs allocated: check module RESET released HIGH and PWDN LOW.");
     puts("Check camera supply/logic rating and shared LCD bus: Pico side must not have 5V pull-ups.");
     puts("Those electrical checks cannot be measured by this firmware.");
@@ -88,25 +106,64 @@ int main(void) {
     printf("Detected: %s, PID=0x%04X. Configured RGB565 QQVGA, 160x120, 38400 bytes.\n",
            info->name, info->pid);
     sensor_t *sensor = pico_camera_sensor_get();
-    if (!sensor || !sensor->set_colorbar || sensor->set_colorbar(sensor, command == 't') != 0) {
-        puts("ERROR configuring library test-pattern mode.");
+    if (!capture_setup(sensor, command == 't')) {
+        puts("ERROR capture configuration readback failed.");
         pico_camera_deinit(); finish();
     }
-    puts(command == 't' ? "MODE library internal bars; NOT a scene photo." : "MODE actual scene; library defaults.");
+    printf("CAPTURE_CONFIG source_rows=%u CLKRC=0x%02X COM10=0x%02X HREF=0x%02X DSP_bars=%d\n",
+           capture_source_rows(sensor->get_reg(sensor, 0x19, 0xff),
+                               sensor->get_reg(sensor, 0x1a, 0xff),
+                               sensor->get_reg(sensor, 0x03, 0xff)),
+           sensor->get_reg(sensor, 0x11, 0xff), sensor->get_reg(sensor, 0x15, 0xff),
+           sensor->get_reg(sensor, 0x32, 0xff),
+           command == 't');
+    puts(command == 't' ? "MODE internal DSP bars; NOT a scene photo." : "MODE actual scene; corrected capture timing.");
     uint8_t lcd_status;
     int lcd = i2c_read_timeout_us(i2c1, 0x27, &lcd_status, 1, false, 10000);
     printf("Shared LCD 0x27: %s (read-only probe; not an LCD functionality/voltage test).\n",
            lcd == 1 ? "ACK" : "no ACK");
     sleep_ms(1000);
-    /* Library OV7670 setup makes VSYNC HIGH during active frame data.
-     * Reject a fixed-count capture that spans more than one such interval. */
-    starts = ends = 0;
-    gpio_set_irq_enabled_with_callback(PIN_CAMERA_VSYNC,
-        GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, frame_edge);
-    camera_fb_t *fb = pico_camera_fb_get();
-    gpio_set_irq_enabled(PIN_CAMERA_VSYNC, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+    /* Controlled bench comparison, not a relaxed frame contract. Each trial
+     * starts fresh and only a complete buffer from one frame can be sent. */
+    static const struct { int offset, reverse, delay; } timing[] = {
+        {0x80, 0x00, 0x02}, {0x80, 0x10, 0x02},
+        {0x00, 0x00, 0x02}, {0x00, 0x10, 0x02},
+        {0x80, 0x00, 0x00}, {0x80, 0x10, 0x00},
+        {0x00, 0x00, 0x00}, {0x00, 0x10, 0x00},
+    };
+    camera_fb_t *fb = NULL;
+    pio_capture_result_t result = {0, -1};
+    for (unsigned trial = 0; trial < sizeof timing / sizeof timing[0]; ++trial) {
+        if (!capture_write_checked(sensor, 0x32, 0xc0, timing[trial].offset) ||
+            !capture_write_checked(sensor, 0x15, 0x10, timing[trial].reverse) ||
+            !capture_write_checked(sensor, 0xa2, 0x7f, timing[trial].delay)) {
+            puts("ERROR timing-trial register readback failed.");
+            pico_camera_deinit(); finish();
+        }
+        sleep_ms(200);
+        printf("TIMING_TRIAL %u HREF=0x%02X COM10=0x%02X PCLK_DELAY=%d\n", trial,
+               sensor->get_reg(sensor, 0x32, 0xff), sensor->get_reg(sensor, 0x15, 0xff),
+               sensor->get_reg(sensor, 0xa2, 0x7f));
+        stdio_flush();
+        if (!wait_blanking()) { puts("No stable VSYNC blanking interval for trial."); continue; }
+        starts = ends = href_rows = 0;
+        gpio_acknowledge_irq(PIN_CAMERA_VSYNC, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL);
+        gpio_acknowledge_irq(PIN_CAMERA_HREF, GPIO_IRQ_EDGE_FALL);
+        gpio_set_irq_enabled_with_callback(PIN_CAMERA_VSYNC,
+            GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, frame_edge);
+        gpio_set_irq_enabled(PIN_CAMERA_HREF, GPIO_IRQ_EDGE_FALL, true);
+        fb = pico_camera_fb_get();
+        gpio_set_irq_enabled(PIN_CAMERA_HREF, GPIO_IRQ_EDGE_FALL, false);
+        gpio_set_irq_enabled(PIN_CAMERA_VSYNC, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+        result = pio_capture_last_result();
+        printf("CAPTURE_DIAG received=%zu/38400 status=%d starts=%u ends=%u HREF_rows=%u\n",
+               result.bytes_received, result.status, starts, ends, href_rows);
+        if (frame_is_expected(fb) && starts == 1 && ends <= 1) { break; }
+        if (fb) { pico_camera_fb_return(fb); fb = NULL; }
+    }
     if (!fb) {
-        puts("ERROR capture: no frame returned (library capture timeout/resource failure).");
+        puts(result.status == -3 ? "ERROR capture: first frame ended short; mixed-frame image rejected."
+                                : "ERROR capture: no frame returned (timeout/resource failure).");
         puts("Check PCLK, VSYNC, HREF, D0-D7; init detection alone does not verify image capture.");
     } else if (!frame_is_expected(fb) || starts != 1 || ends > 1) {
         printf("ERROR incomplete/unexpected frame: %zux%zu, %zu bytes, format=%d, starts=%u ends=%u.\n",

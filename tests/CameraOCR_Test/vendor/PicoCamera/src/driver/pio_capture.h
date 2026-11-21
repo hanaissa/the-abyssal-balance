@@ -30,6 +30,13 @@ typedef struct {
     int pin_pclk;
 } pio_capture_pins_t;
 
+/* Local bench diagnostic: -3 means the first frame ended short; -2 timeout. */
+typedef struct {
+    size_t bytes_received;
+    int status;
+} pio_capture_result_t;
+pio_capture_result_t pio_capture_last_result(void);
+
 /**
  * @brief Claim a PIO state machine and DMA channel, load the capture program.
  * @return 0 on success
@@ -43,7 +50,8 @@ void pio_capture_deinit(void);
  * @brief Capture exactly len bytes (one frame) into buf, blocking.
  *
  * Waits for the next VSYNC rising edge, then captures while HREF is high,
- * clocked by PCLK, until len bytes are in the buffer.
+ * clocked by PCLK, until len bytes are in the buffer. A short first frame is
+ * rejected instead of filling the buffer with bytes from a subsequent frame.
  *
  * @param timeout_ms  abort and return PICO timeout error after this long
  * @return 0 on success, negative on timeout/error

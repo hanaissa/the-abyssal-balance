@@ -2,17 +2,38 @@
 
 This supersedes the earlier custom-capture experiments for new camera testing.
 It uses the actual [PicoCamera Pico SDK example](https://github.com/umeiko/PicoCamera/tree/281d9ff6de5d5f6bd68c2ce75f245cc9cbadb0ea/examples/pico_sdk_capture)
-and a pinned, unmodified MIT-licensed library snapshot in `../vendor/PicoCamera`.
+and a pinned MIT-licensed library snapshot in `../vendor/PicoCamera`, with the
+local sized-capture patch recorded in its [UPSTREAM.md](../vendor/PicoCamera/UPSTREAM.md).
 The Pico SDK target links `pico_camera`; Arduino is not involved. Legacy bench
 files are preserved, but do not flash them for these instructions.
 
-**Current rollback:** at the owner's request, experimental window, CLKRC,
-PCLK-polarity, DSP-pattern, sync-baseline and capture-lifecycle changes have
-been reverted. The target uses the library's original setup again, with the
-documented existing pins and RGB565 QQVGA configuration. The receiver, CRC,
-raw-frame sidecars, metadata and original single-frame checks are retained.
+**Current fix v3:** after both scene and scaler bars reported `starts=2 ends=1`,
+capture setup now keeps PIO disabled until its counter and DMA are ready.
+The sized sampler rechecks HREF after PCLK, retains the first line when HREF
+asserts with VSYNC, and halts at the requested byte count. A PIO start flag
+lets the CPU reject a short first frame before collecting another frame.
+The wrapper programs and verifies a 12..492 (480-row) source window, CLKRC
+divider four, reversed PCLK, and DSP bars rather than the scaler pattern.
+The v2 hardware run still stopped short at 38280/38400 bytes within one frame.
+This is consistent with a one-byte-per-row deficit, but did not measure individual
+rows. Further review found that upstream `frame_control()` writes only HREF's
+six window bits, clearing the two timing-offset bits. V3 restores HREF[7:6]
+to the sensor's documented default `0x80` while preserving the window LSBs.
+With this window, the full HREF register should read `0xB6`.
+These changes fix concrete setup issues; the HREF offset's effect on the hardware
+byte deficit remains to be verified. GPIO assignments
+are unchanged. The receiver, CRC, raw-frame sidecars, metadata and original
+single-frame checks are retained.
 Run without `--color-bars` to capture the actual scene. That flag deliberately
 produces a test pattern, not a photograph. Old images remain unchanged.
+
+Rebuild and **reflash** before retrying; the startup banner must contain
+`Capture fix v3`. `CAPTURE_CONFIG` must show `source_rows=480` and `HREF=0xB6`, and
+`CAPTURE_DIAG` reports the received byte count, driver status, and VSYNC counts.
+`HREF_rows` counts observed falling HREF edges while the first VSYNC interval is
+active. It is diagnostic only: IRQ delivery order at a simultaneous frame/line
+boundary can affect it. Status -3 rejects a short first frame; -2 is a timeout. No incomplete image
+is padded or accepted. New hardware success is still required.
 
 ## Electrical checks before starting
 
@@ -136,9 +157,9 @@ Frame memory is returned and camera resources released before idling.
 
 Firmware checks format/dimensions/length/pointer and observes VSYNC edges during
 capture; it rejects a reported buffer that spans multiple active-frame rises.
-The upstream fixed-size capture has a 2-second timeout. A NULL frame is reported
-as a timeout/resource failure because this API does not expose its detailed
-capture error code. Register-table writes in the upstream OV7670 code do not
+The locally patched fixed-size capture has a 2-second timeout and rejects a
+short first frame. Its diagnostic accessor distinguishes that rejection from
+timeout and reports the actual DMA byte count. Register-table writes in the upstream OV7670 code do not
 all propagate errors; init success is not proof every register was programmed.
 No vendor source was patched to conceal those limitations.
 
@@ -162,7 +183,15 @@ ctest --test-dir build/picocamera-host --output-on-failure
 & .\.venv-camera\Scripts\python.exe -m unittest discover -s tests/CameraOCR_Test/picocamera -p test_receive.py -v
 ```
 
-Cases include a valid frame, missing/truncated/wrong-format metadata, CRC32
+Cases include the real sized-capture driver under a host SDK fake (disabled
+setup ordering, normal completion, a 38280-byte short frame, no-sync timeout,
+FIFO tail, cleanup and retry), plus its assembled sampler under synthetic
+waveforms (first PCLK already high, HREF coincident with VSYNC, blanking clocks,
+and halt at the exact byte count). The fake/simulator does not establish
+electrical timing or actual DMA/FIFO behavior. Register tests cover the
+478-to-480-row correction, preservation of gain/sync bits, scene/bar selection,
+restoration of HREF's offset without changing its six window bits, and
+configuration readback rejection. Existing cases include a valid frame, missing/truncated/wrong-format metadata, CRC32
 vectors, binary payloads containing every byte value, corrupt checksum,
 truncation, incorrect dimensions/trailer, device errors and known RGB color
 vectors in both byte orders. The firmware also exercises real-library rejection
@@ -175,7 +204,7 @@ that PicoCamera works on this wiring. OCR is deliberately untouched.**
 Setup results on this laptop: standalone and root Pico builds passed, the host
 frame-contract/CRC checks passed, all four Python test groups passed, and the
 existing six host checks passed. Initial vendored source hashes matched the downloaded
-commit; the subsequent capture lifecycle patch is documented separately.
+commit; subsequent local capture changes are documented in UPSTREAM.md.
 `.venv-camera` has Python 3.12.16, pyserial 3.5, NumPy 2.5.5 and
 OpenCV 4.14.0.94 installed. A synthetic RGB565 image saved and reloaded through
 OpenCV without pixel changes; its GUI backend reports Win32. This is software
@@ -241,7 +270,7 @@ The sampler and sensor driver are still PicoCamera's; there is no new capture
 driver. The patch builds and protocol tests pass, but must be tested on hardware;
 it is not a demonstrated explanation or cure for all remaining blur.
 
-## Internal-pattern isolation test
+## Historical internal-pattern isolation test (superseded by fix v3)
 
 The latest owner scene is still unusable. Instead of further focus/exposure
 guesses, `receive.py --color-bars` now sends `t` at the startup prompt; the
