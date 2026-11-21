@@ -394,6 +394,7 @@ StatusCode PCD_NTAG216_AUTH(MFRC522Ptr_t mfrc, uint8_t *passWord,
 StatusCode PCD_MIFARE_Transceive(MFRC522Ptr_t mfrc, uint8_t *sendData,
 								 uint8_t sendLen, bool acceptTimeout);
 const char *GetStatusCodeName(StatusCode code);
+PICC_Type PICC_GetType(uint8_t sak);
 const char *PICC_GetTypeName(PICC_Type type);
 StatusCode MIFARE_TwoStepHelper(MFRC522Ptr_t mfrc, uint8_t command,
 								uint8_t blockAddr, long data);

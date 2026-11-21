@@ -119,6 +119,13 @@ AppStatus lcd1602_show_text(const char *text) {
     return lcd_line(0, text);
 }
 
+AppStatus lcd1602_show_lines(const char *first, const char *second) {
+    if (!ready) return APP_NOT_READY;
+    if (first == NULL || second == NULL) return APP_ERROR;
+    if (lcd_line(0, first) != APP_OK) return APP_ERROR;
+    return lcd_line(1, second);
+}
+
 #else
 
 AppStatus lcd1602_init(void) {
@@ -133,6 +140,12 @@ AppStatus lcd1602_show_levels(uint16_t target, uint16_t current) {
 
 AppStatus lcd1602_show_text(const char *text) {
     (void)text;
+    return APP_NOT_READY;
+}
+
+AppStatus lcd1602_show_lines(const char *first, const char *second) {
+    (void)first;
+    (void)second;
     return APP_NOT_READY;
 }
 

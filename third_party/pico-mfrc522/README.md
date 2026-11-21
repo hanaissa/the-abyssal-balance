@@ -32,6 +32,8 @@ the protocol in `drivers/rfid/RC522.c`:
 - Wait 50 ms after software reset before writing configuration registers.
 - Fix nested chip select and retain partial-byte alignment in `PCD_ReadNRegister()`.
 - Keep private chip-select declarations in the `.c` file rather than the public header.
+- Declare the already-implemented `PICC_GetType()` in the public header for
+  the production driver's read-only card-identification metadata.
 
 The library contains optional card-memory write functions. The project wrapper
 and UID demonstration do not call any of them. Builds require no network fetch.

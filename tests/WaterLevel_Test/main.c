@@ -16,13 +16,14 @@ int main(void) {
         return 1;
     }
     printf("Water sensor: GP27 / ADC1, raw readings 0..4095.\n");
-    printf("Compare dry and wet readings; no water-height calibration yet.\n");
+    printf("Driver calibration: ADC 1850=50%%, 2000=75%%, 2100=100%%.\n");
     while (true) {
-        uint16_t raw;
-        if (water_level_read(&raw) == APP_OK) {
+        uint16_t raw, level;
+        if (water_level_read(&level) == APP_OK && water_level_get_last_raw(&raw) == APP_OK) {
             unsigned millivolts = (unsigned)raw * 3300u / 4096u;
-            printf("Raw: %4u / 4095 | Approx: %4u mV\n",
-                   (unsigned)raw, millivolts);
+            printf("Raw: %4u / 4095 | Approx: %4u mV | Level: %u / 1000 (%u.%u%%)\n",
+                   (unsigned)raw, millivolts, (unsigned)level,
+                   (unsigned)level / 10u, (unsigned)level % 10u);
         } else {
             printf("Water sensor read failed.\n");
         }
