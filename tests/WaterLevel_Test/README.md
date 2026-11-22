@@ -1,5 +1,9 @@
 # Water sensor and LCD demonstration
 
+`WaterLevel_Test` builds the existing `lcd_demo.c` unchanged, including RFID and
+calibration. The redundant serial-only entry point is preserved in
+[the archive](../../archive/tests/WaterLevel_Test/main.c).
+
 The production code is in [WaterLevel.c](../../drivers/water/WaterLevel.c) and
 [WaterLevel.h](../../drivers/water/WaterLevel.h). The LCD entry point only calls
 these APIs; it contains no sensor conversion or filtering implementation.
@@ -48,14 +52,13 @@ From the root using the existing Pico build:
 
 ```powershell
 cmake -S . -B build/pico-check -DABYSSAL_BUILD_TESTS=ON
-cmake --build build/pico-check --target WaterLevel_LCD_Demo WaterLevel_Test abyssal_balance
+cmake --build build/pico-check --target WaterLevel_Test CameraOCR_Test
 ```
 
 | Mode | UF2 from repository root |
 | --- | --- |
-| RFID target + calibrated water LCD | `build/pico-check/tests/WaterLevel_LCD_Demo.uf2` |
-| Serial-only raw water readings | `build/pico-check/tests/WaterLevel_Test.uf2` |
-| Camera/OCR LCD | `build/pico-check/abyssal_balance.uf2` |
+| RFID target + calibrated water LCD | `build/pico-check/tests/WaterLevel_Test.uf2` |
+| Camera/OCR LCD | `build/pico-check/tests/CameraOCR_Test.uf2` |
 
 With pump power OFF, hold BOOTSEL while reconnecting Pico USB, then copy the
 chosen UF2 to RPI-RP2. Camera/OCR firmware remains separate; its LCD shows

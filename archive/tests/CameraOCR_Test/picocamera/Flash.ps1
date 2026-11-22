@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$firmware = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../build/picocamera-bench/PicoCamera_Test.uf2'))
+$firmware = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../../build/picocamera-bench/PicoCamera_Test.uf2'))
 if (-not (Test-Path -LiteralPath $firmware)) { throw 'Build PicoCamera_Test before flashing.' }
 $picoDrive = [System.IO.DriveInfo]::GetDrives() |
     Where-Object { $_.IsReady -and $_.VolumeLabel -eq 'RPI-RP2' } |

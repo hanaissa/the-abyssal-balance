@@ -51,6 +51,17 @@ context for fresh host configuration instructions.
 
 ## Build, flash and operate
 
+The root Pico build also exposes the unchanged `bench.c` as `Pump_Test`:
+
+```powershell
+cmake --build build/milestone2-pico --target Pump_Test
+```
+
+Its output is `build/milestone2-pico/tests/Pump_Test.uf2`. The standalone
+`Pump_Bench` build below remains available; the two names run the same bench
+source. In host builds, `Pump_Test` remains the existing simulated regression.
+
+
 The standalone CMake target compiles only the motor sources and Pico support.
 Use the installed Pico SDK/toolchain and original Pico board configuration:
 

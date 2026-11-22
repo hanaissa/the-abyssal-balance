@@ -1,3 +1,22 @@
+# Camera regression checks
+
+This directory now retains software regressions only. From the repository root:
+
+```powershell
+cmake -S tests/CameraOCR_Test/picocamera -B build/camera-regressions -DABYSSAL_PICOCAMERA_HOST_TESTS=ON
+cmake --build build/camera-regressions --config Release
+ctest --test-dir build/camera-regressions -C Release --output-on-failure
+& ./build/camera-preview-env/Scripts/python.exe -m unittest discover -s tests/CameraOCR_Test/picocamera -p test_receive.py -v
+```
+
+Use [CameraOCR_Test](../README.md) for the Camera/OCR/LCD demonstration and
+[tools/camera](../../../tools/camera/README.md) for the maintained USB preview.
+Compatibility hardware launchers were moved to [the archive](../../../archive/tests/README.md).
+The development notes below are historical; their old hardware commands and
+compatibility-launcher paths are superseded by these instructions.
+
+---
+
 # PicoCamera OV7670 RGB565 test
 
 **Implementation moved:** production capture, settings, patched dependency and

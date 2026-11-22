@@ -1,110 +1,93 @@
-#include <stdio.h>
-#include "AppConfig.h"
+#include "StateMachine.h"
 
 #ifdef PICO_ON_DEVICE
+#include <stdio.h>
+#include <string.h>
 #include "pico/stdlib.h"
-#include "pico/stdio_usb.h"
-#include "hardware/clocks.h"
-#include "hardware/i2c.h"
-#include "hardware/pwm.h"
+#include "Camera.h"
+#include "OCR.h"
+#include "LCD1602.h"
 
-enum { CAMERA_ADDRESS = 0x21, BUS_TIMEOUT_US = 20000 };
-
-static bool read_register(uint8_t reg, uint8_t *value) {
-    /* Separate STOP/START phases for SCCB register selection and reading. */
-    int result = i2c_write_timeout_us(i2c1, CAMERA_ADDRESS, &reg, 1, false,
-                                      BUS_TIMEOUT_US);
-    if (result != 1) {
-        printf("FAIL: select register 0x%02X (%d).\n", reg, result);
-        return false;
+/* Cache both visible rows, including padding, rather than the full OCR string. */
+static AppStatus display_result(const char *text, bool captured, char displayed[33], bool *valid) {
+    char rows[33];
+    memset(rows, ' ', 32);
+    rows[32] = '\0';
+    if (captured) { memcpy(rows, "Code Captured:", 14); }
+    size_t length = 0;
+    while (length < 16 && text[length]) {
+        rows[(captured ? 16 : 0) + length] = text[length];
+        ++length;
     }
-    result = i2c_read_timeout_us(i2c1, CAMERA_ADDRESS, value, 1, false,
-                                 BUS_TIMEOUT_US);
-    if (result != 1) {
-        printf("FAIL: read register 0x%02X (%d).\n", reg, result);
-        return false;
+    if (*valid && memcmp(rows, displayed, sizeof rows) == 0) {
+        return APP_OK;
     }
-    return true;
+    char first[17];
+    memcpy(first, rows, 16);
+    first[16] = '\0';
+    AppStatus status = lcd1602_show_lines(first, rows + 16);
+    *valid = status == APP_OK;
+    if (*valid) { memcpy(displayed, rows, sizeof rows); }
+    return status;
 }
 
-static void observe_signals(void) {
-    const unsigned pins[] = { PIN_CAMERA_VSYNC, PIN_CAMERA_HREF, PIN_CAMERA_PCLK };
-    unsigned transitions[3] = {0};
-    uint32_t previous = gpio_get_all();
-    absolute_time_t deadline = make_timeout_time_ms(500);
-    while (!time_reached(deadline)) {
-        uint32_t sample = gpio_get_all();
-        uint32_t changed = sample ^ previous;
-        for (unsigned i = 0; i < 3; ++i) {
-            if (changed & (1u << pins[i])) { ++transitions[i]; }
-        }
-        previous = sample;
+static AppStatus capture_and_display(char displayed[33], bool *valid) {
+    char text[256] = {0};
+    AppStatus status = camera_capture();
+    if (status == APP_OK) {
+        status = ocr_read_text(text, sizeof text);
+    } else {
+        printf("Camera capture failed: %d\n", status);
     }
-    printf("Observed transitions / 500 ms: VSYNC=%u HREF=%u PCLK=%u\n",
-           transitions[0], transitions[1], transitions[2]);
-    puts("Polling misses edges; these are not frequency measurements or an image test.");
+    /* OCR consumes the driver's current frame synchronously. Release it even
+     * after a failed capture/read; never display a previous frame's text. */
+    camera_release_frame();
+    text[sizeof text - 1] = '\0';
+    bool captured = status == APP_OK && text[0];
+    const char *result = captured ? text : "Read failed";
+    printf("OCR status=%d text=%s\n", status, result);
+    return display_result(result, captured, displayed, valid);
 }
 
-int main(void) {
-    stdio_init_all();
-    while (!stdio_usb_connected()) { sleep_ms(100); }
-    sleep_ms(1000);
-    puts("OV7670 identification test. Keep external pump power OFF.");
-    puts("No capture or OCR is implemented by this diagnostic.");
-
-    /* Use only the camera pins reserved in AppConfig.h. */
-    unsigned slice = pwm_gpio_to_slice_num(PIN_CAMERA_XCLK);
-    uint32_t sys_hz = clock_get_hz(clk_sys);
-    uint32_t divider16 = (uint32_t)(((uint64_t)sys_hz * 8u + 6000000u) / 12000000u);
-    if (divider16 < 16u || divider16 > 4095u) {
-        puts("FAIL: system clock cannot generate the requested XCLK.");
-        return 1;
+static int stop_with_error(const char *message) {
+    puts(message);
+    if (lcd1602_show_text(message) != APP_OK) {
+        puts("LCD error while displaying initialization failure.");
     }
-    pwm_config config = pwm_get_default_config();
-    pwm_config_set_wrap(&config, 1);
-    pwm_config_set_clkdiv_int_frac(&config, divider16 >> 4u, divider16 & 15u);
-    pwm_init(slice, &config, false);
-    pwm_set_chan_level(slice, pwm_gpio_to_channel(PIN_CAMERA_XCLK), 1);
-    gpio_set_function(PIN_CAMERA_XCLK, GPIO_FUNC_PWM);
-    pwm_set_enabled(slice, true);
-    printf("XCLK configured on GP%d: approximately %lu Hz (not measured).\n",
-           PIN_CAMERA_XCLK, (unsigned long)((uint64_t)sys_hz * 8u / divider16));
-
-    i2c_init(i2c1, 100000);
-    gpio_set_function(PIN_CAMERA_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(PIN_CAMERA_SCL, GPIO_FUNC_I2C);
-    gpio_pull_up(PIN_CAMERA_SDA);
-    gpio_pull_up(PIN_CAMERA_SCL);
-    const unsigned inputs[] = { PIN_CAMERA_VSYNC, PIN_CAMERA_HREF, PIN_CAMERA_PCLK };
-    for (unsigned i = 0; i < 3; ++i) {
-        gpio_init(inputs[i]);
-        gpio_set_dir(inputs[i], GPIO_IN);
-        gpio_disable_pulls(inputs[i]);
-    }
-    sleep_ms(100);
-    for (;;) {
-        uint8_t pid, version, manufacturer_high, manufacturer_low;
-        bool ok = read_register(0x0A, &pid) && read_register(0x0B, &version) &&
-                  read_register(0x1C, &manufacturer_high) &&
-                  read_register(0x1D, &manufacturer_low);
-        if (ok) {
-            printf("ID: PID=%02X VER=%02X manufacturer=%02X%02X\n",
-                   pid, version, manufacturer_high, manufacturer_low);
-            puts(pid == 0x76 && manufacturer_high == 0x7F && manufacturer_low == 0xA2 ?
-                 "PASS: OV7670-family identification registers match." :
-                 "FAIL: unexpected identity; confirm module and wiring.");
-        } else {
-            puts("No complete ID read. Check module power, GND, SIOD/SIOC, XCLK,");
-            puts("RESET released, PWDN low, pull-ups and SCCB compatibility.");
-            puts("A failed bus read alone does not prove the camera is broken.");
-        }
-        observe_signals();
-        sleep_ms(2000);
-    }
-}
-#else
-int main(void) {
-    puts("Camera identification requires the standalone Pico build; not tested on host.");
-    return 0;
+    camera_deinit();
+    return 1;
 }
 #endif
+
+int main(void) {
+    StateMachine machine;
+    state_machine_init(&machine);
+#ifdef PICO_ON_DEVICE
+    /* Camera/LCD use the same existing I2C1 configuration. All operations are
+     * sequential; no LCD writes occur during capture or sensor setup. */
+    stdio_init_all();
+    AppStatus camera_status = camera_init();
+    if (lcd1602_init() != APP_OK) {
+        puts("LCD initialization failed; camera stopped.");
+        camera_deinit();
+        return 1;
+    }
+    if (camera_status != APP_OK) { return stop_with_error("Camera error"); }
+    if (ocr_init() != APP_OK) { return stop_with_error("OCR error"); }
+    const OCRConfig settings = {.single_line = true};
+    if (ocr_configure(&settings) != APP_OK) { return stop_with_error("OCR error"); }
+
+    char displayed[33] = {0};
+    bool display_valid = false;
+    for (;;) {
+        if (capture_and_display(displayed, &display_valid) != APP_OK) {
+            puts("LCD write failed; camera stopped.");
+            camera_deinit();
+            return 1;
+        }
+        sleep_ms(500);
+    }
+#else
+    return (int)state_machine_state(&machine);
+#endif
+}
