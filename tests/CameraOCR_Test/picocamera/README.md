@@ -11,7 +11,7 @@ ctest --test-dir build/camera-regressions -C Release --output-on-failure
 
 Use [CameraOCR_Test](../README.md) for the Camera/OCR/LCD demonstration and
 [tools/camera](../../../tools/camera/README.md) for the maintained USB preview.
-Compatibility hardware launchers were moved to [the archive](../../../archive/tests/README.md).
+Obsolete compatibility hardware launchers have been removed.
 The development notes below are historical; their old hardware commands and
 compatibility-launcher paths are superseded by these instructions.
 

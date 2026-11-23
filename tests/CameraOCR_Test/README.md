@@ -16,5 +16,4 @@ Flash `build/milestone2-pico/tests/CameraOCR_Test.uf2`. The LCD shows
 experimental; see [the model limits](../../drivers/camera/ocr/MODEL.md).
 
 The maintained USB image preview is unchanged in [tools/camera](../../tools/camera/README.md).
-Useful host regressions remain in `picocamera/`; obsolete diagnostics and
-custom capture experiments are preserved in [the archive](../../archive/tests/README.md).
+Useful host regressions remain in `picocamera/`.

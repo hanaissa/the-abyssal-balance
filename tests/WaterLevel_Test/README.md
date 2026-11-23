@@ -1,8 +1,7 @@
 # Water sensor and LCD demonstration
 
 `WaterLevel_Test` builds the existing `lcd_demo.c` unchanged, including RFID and
-calibration. The redundant serial-only entry point is preserved in
-[the archive](../../archive/tests/WaterLevel_Test/main.c).
+calibration.
 
 The production code is in [WaterLevel.c](../../drivers/water/WaterLevel.c) and
 [WaterLevel.h](../../drivers/water/WaterLevel.h). The LCD entry point only calls

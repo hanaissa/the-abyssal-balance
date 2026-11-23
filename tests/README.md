@@ -37,5 +37,3 @@ ctest --test-dir build/milestone2-host -C Release --output-on-failure
 The separate [camera regressions](CameraOCR_Test/picocamera/README.md) and
 [OCR tools](../tools/ocr/CMakeLists.txt) retain their existing checks and fixtures.
 The maintained [camera preview](../tools/camera/README.md) remains outside tests.
-Obsolete experiments and the empty integration program are in
-[archive/tests](../archive/tests/README.md).
